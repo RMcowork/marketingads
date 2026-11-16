@@ -60,7 +60,7 @@ export function validateBrief(brief, ctx) {
   }
   const copyText = `${headline} ${caption} ${cta}`;
   const usedText = factsUsed.join(' ');
-  for (const price of new Set((copyText.match(PRICE) ?? []).map(norm))) {
+  for (const price of new Set((copyText.match(PRICE) ?? []).map((m) => norm(m).replace(/[,.]+$/, '')))) {
     if (!usedText.includes(price) && !norm(ctx.request ?? '').includes(price)) {
       p.push(`copy states "${price}", which is not in facts_used. Use only prices from <facts> or <request>, and list them in facts_used.`);
     }

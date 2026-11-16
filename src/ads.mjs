@@ -9,6 +9,7 @@ import { config, ROOT } from './env.mjs';
 import { info, warn } from './log.mjs';
 import { composeCaption } from './brief.mjs';
 import { composePrompt, draw } from './image.mjs';
+import { brandImage } from './overlay.mjs';
 
 const driver = config.adAgentDriver === 'fake' ? await import('./agent-fake.mjs') : await import('./agent.mjs');
 
@@ -156,6 +157,16 @@ export function replyToJob(id, text, { redraw = false } = {}) {
   return publicJob(job);
 }
 
+/** The owner said "ok": remember it on the job. Nothing is posted anywhere. */
+export function approveJob(id) {
+  const job = loadJob(id);
+  if (!job) return null;
+  job.approved = true;
+  saveJob(job);
+  info(`${id}: approved by the owner`);
+  return publicJob(job);
+}
+
 function run(job, fn) {
   running.add(job.id);
   fn()
@@ -190,10 +201,30 @@ async function agentTurn(job, message, ctx, first, forceRedraw = false) {
     const prompt = composePrompt(turn.brief.image);
     const t1 = Date.now();
     const { bytes, usage: imageUsage } = await draw(prompt, turn.brief.image.aspect);
-    const file = `${job.id}_${job.images.length + 1}.jpg`;
-    writeFileSync(join(ADS_DIR, file), bytes);
-    job.images.push({ file, aspect: turn.brief.image.aspect, prompt, bytes: bytes.length, drawMs: Date.now() - t1, usage: imageUsage ?? null });
-    info(`${job.id}: picture ${job.images.length} drawn (${bytes.length} bytes, ${Date.now() - t1} ms)`);
+    const drawMs = Date.now() - t1;
+    const n = job.images.length + 1;
+    const headline = turn.brief.copy.headline;
+    const branded = await brandImage(bytes, { headline, hasText: Boolean(turn.brief.image.text_in_image) });
+    const file = `${job.id}_${n}.jpg`;
+    writeFileSync(join(ADS_DIR, file), branded.bytes);
+    // The picture as drawn is kept next to the branded one, so a new headline can be put on it without drawing again.
+    let rawFile = null;
+    if (branded.branded) { rawFile = `${job.id}_${n}_raw.jpg`; writeFileSync(join(ADS_DIR, rawFile), bytes); }
+    job.images.push({ file, rawFile, headline: branded.branded ? headline : null, aspect: turn.brief.image.aspect, prompt, bytes: branded.bytes.length, drawMs, usage: imageUsage ?? null });
+    info(`${job.id}: picture ${job.images.length} drawn (${branded.bytes.length} bytes, ${drawMs} ms${branded.branded ? ', logo and headline added' : ''})`);
+  } else {
+    // A copy-only change: if the headline changed, the one on the picture is out of date. Put the new one on the raw picture.
+    const last = job.images.at(-1);
+    const headline = turn.brief.copy.headline;
+    if (last?.rawFile && last.headline !== headline && existsSync(join(ADS_DIR, last.rawFile))) {
+      const branded = await brandImage(readFileSync(join(ADS_DIR, last.rawFile)), { headline, hasText: Boolean(turn.brief.image.text_in_image) });
+      if (branded.branded) {
+        const file = `${job.id}_${job.images.length + 1}.jpg`;
+        writeFileSync(join(ADS_DIR, file), branded.bytes);
+        job.images.push({ ...last, file, headline, bytes: branded.bytes.length });
+        info(`${job.id}: new headline put on the picture`);
+      }
+    }
   }
   job.status = 'draft';
   saveJob(job);

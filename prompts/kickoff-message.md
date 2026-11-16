@@ -29,7 +29,7 @@ Three rules for whoever fills it in:
 
 ## Filled example
 
-The prices are the ones used all through the course. The opening hours are sample data.
+The branch, hours and prices are placeholder data for MeatLocker until the owner supplies the real ones.
 
 ```text
 <brand_sheet>
@@ -38,13 +38,13 @@ The prices are the ones used all through the course. The opening hours are sampl
 
 <facts>
 Today: Wednesday 2026-11-11. Time zone: Asia/Jerusalem.
-Branch: Tel Aviv - Florentin
-Opening hours: Sunday to Thursday 06:30-20:00, Friday 07:00-14:00, Saturday closed.
-Products and prices: Challah ₪18, Babka ₪42, Sourdough loaf ₪28, Rugelach (box) ₪32, Croissant ₪12, Cappuccino ₪14, Cheese bourekas ₪10, Cinnamon roll ₪14.
+Branch: Tel Aviv
+Opening hours: Sunday to Thursday 12:00-23:00, Friday 12:00-17:00, Saturday 19:00-23:00.
+Products and prices: Mushroom Burger ₪56, Double Cheeseburger ₪62, Smash Onion Burger ₪54, Bacon Burger ₪64, Fries ₪18, Milkshake ₪24, Soft drink ₪12.
 </facts>
 
 <request>
-מודעה ליום שישי: חלות, 2 ב-30, פלורנטין
+מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, תל אביב
 </request>
 ```
 
@@ -58,7 +58,7 @@ When the owner answers a draft, send their reply into the **same session**. The 
 </reply>
 ```
 
-Examples of replies the agent handles: "קצר יותר", "another image", "make it about the babka", "בלי אימוג'י".
+Examples of replies the agent handles: "קצר יותר", "another image", "make it about the bacon burger", "בלי אימוג'י".
 
 Two replies never reach the agent, because the service answers them itself:
 
@@ -78,7 +78,7 @@ accepted
 ```text
 rejected
 - copy.caption is 688 characters. The limit is 600.
-- copy.caption states "₪25", which is not in facts_used. Use only prices from <facts> or <request>.
+- copy.caption states "₪95", which is not in facts_used. Use only prices from <facts> or <request>.
 - image.scene is in Hebrew. Write the scene in English.
 ```
 

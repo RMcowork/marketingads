@@ -37,6 +37,15 @@ export const config = {
   imageProvider: process.env.IMAGE_PROVIDER || 'openai', // openai | gemini | mock (tests)
   imageModel: process.env.IMAGE_MODEL || (process.env.IMAGE_PROVIDER === 'gemini' ? 'gemini-nano-banana-2.1' : 'gpt-image-2.6-sunburst'),
   imageQuality: process.env.IMAGE_QUALITY || 'medium',
+  // Logo and headline added to every picture (src/overlay.mjs). AD_OVERLAY=off keeps pictures as drawn.
+  overlay: String(process.env.AD_OVERLAY || 'on').toLowerCase() !== 'off',
+  // Telegram front door (src/telegram.mjs). Off when there is no token. TELEGRAM is accepted as an older name.
+  telegramToken: process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM || '',
+  // Chat ids allowed to make ads, comma-separated. Anyone else can only ask the bot for their own id.
+  telegramAllowedChats: String(process.env.TELEGRAM_ALLOWED_CHAT_IDS || '').split(/[\s,]+/).filter(Boolean),
+  telegramApiBase: (process.env.TELEGRAM_API_BASE || 'https://api.telegram.org').replace(/\/+$/, ''),
+  telegramLongPollSeconds: num('TELEGRAM_LONG_POLL_SECONDS', 25),
+  telegramWaitPollMs: num('TELEGRAM_WAIT_POLL_MS', 3000),
 };
 
 /** Problems that stop the server from starting, and ones that only stop ads from working. */
@@ -48,5 +57,6 @@ export function checkConfig() {
   if (config.adAgentDriver === 'managed' && !process.env.ANTHROPIC_API_KEY) warnings.push('ANTHROPIC_API_KEY is not set: the research agent cannot run.');
   if (config.imageProvider === 'openai' && !process.env.OPENAI_API_KEY) warnings.push('OPENAI_API_KEY is not set: pictures cannot be drawn.');
   if (config.imageProvider === 'gemini' && !process.env.GEMINI_API_KEY) warnings.push('GEMINI_API_KEY is not set: pictures cannot be drawn.');
+  if (config.telegramToken && !config.telegramAllowedChats.length) warnings.push('TELEGRAM_ALLOWED_CHAT_IDS is empty: the Telegram bot will only tell people their chat id (send it /myid), and will make no ads until you add it.');
   return { fatal, warnings };
 }

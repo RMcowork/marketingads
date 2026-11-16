@@ -3,6 +3,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { config, ROOT } from './env.mjs';
+import { overlayActive, solidJpeg } from './overlay.mjs';
 
 const OPENAI_SIZES = { square: '1024x1024', portrait: '1024x1536', landscape: '1536x1024' };
 const GEMINI_RATIOS = { square: '1:1', portrait: '2:3', landscape: '3:2' };
@@ -18,9 +19,11 @@ export function composePrompt(image) {
   const avoid = (image.avoid ?? []).map((s) => String(s).trim()).filter(Boolean);
   const avoidLine = avoid.length ? ` Do not include: ${avoid.join(', ')}.` : '';
   const text = String(image.text_in_image ?? '').trim();
+  // The logo goes at the top and the headline at the bottom (src/overlay.mjs): keep both strips empty.
+  const room = overlayActive() ? ' Keep the top fifth and the bottom fifth of the frame free of the subject, plain counter and wall only, because a logo and a headline are added there afterwards.' : '';
   const format = text
-    ? `${shape} composition with the subject centred and a little room at the edges for cropping. Render this text once, exactly as written, large and clearly legible: "${text}". No other text, letters, numbers, logos or watermarks.${avoidLine}`
-    : `${shape} composition with the subject centred and a little room at the edges for cropping. No text, letters, numbers, logos or watermarks anywhere in the image.${avoidLine}`;
+    ? `${shape} composition with the subject centred and a little room at the edges for cropping.${room} Render this text once, exactly as written, large and clearly legible: "${text}". No other text, letters, numbers, logos or watermarks.${avoidLine}`
+    : `${shape} composition with the subject centred and a little room at the edges for cropping.${room} No text, letters, numbers, logos or watermarks anywhere in the image.${avoidLine}`;
   return [brandLayer(), String(image.scene ?? '').trim(), format].filter(Boolean).join('\n\n');
 }
 
@@ -61,7 +64,7 @@ export async function draw(prompt, aspect) {
   switch (config.imageProvider) {
     case 'openai': return drawOpenAI(prompt, aspect);
     case 'gemini': return drawGemini(prompt, aspect);
-    case 'mock': return { bytes: MOCK_JPEG, usage: null };
+    case 'mock': return { bytes: Number(process.env.MOCK_IMAGE_PX) > 1 ? await solidJpeg(Number(process.env.MOCK_IMAGE_PX)) : MOCK_JPEG, usage: null };
     default: throw new Error(`unknown IMAGE_PROVIDER "${config.imageProvider}" (openai | gemini | mock)`);
   }
 }

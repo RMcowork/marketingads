@@ -1,12 +1,12 @@
 # Ad agents: research, copy and a picture, deployed to the cloud
 
-A course project. You write one line, like "an ad for Friday: challah, 2 for ₪30, Florentin". You get back a
+A course project. You write one line, like "an ad for Friday: Double Cheeseburger, 2 for ₪100, Tel Aviv". You get back a
 finished ad draft:
 - **one timely angle**, found by a research agent on the web;
 - **the copy**: headline, post text, call to action and hashtags, in the brand's voice;
 - **a picture**, drawn by an image model.
 
-Ask for changes in plain words. The agent keeps the conversation, so "shorter" or "make it about the babka" takes
+Ask for changes in plain words. The agent keeps the conversation, so "shorter" or "make it about the bacon burger" takes
 seconds. Tick "New picture" and it draws again.
 
 ```
@@ -22,7 +22,7 @@ your browser ◀── picture + copy + the agent's notes and sources
 ```
 
 The agent runs on Anthropic's platform. Your server holds the keys, checks every brief, draws the picture, and keeps
-the drafts. The sample business is **Dana's Bakery** ("המאפייה של דנה"), which is made up.
+the drafts. The business is **MeatLocker**, a burger restaurant (logo and photos in `../Clients/MeatLocker/`). Its branch, hours and prices in `prompts/facts.md` are placeholders until the owner supplies the real ones.
 
 ## What's inside
 
@@ -32,7 +32,7 @@ the drafts. The sample business is **Dana's Bakery** ("המאפייה של דנ�
 | `agents/ad-reviewer.md` | An optional second agent that reviews a brief. Not wired in; an exercise. |
 | `environments/ad-research.yaml` | The environment the agent runs in, on Anthropic's side |
 | `prompts/` | The brand sheet, the facts, the picture style, and how the prompts are put together |
-| `src/` | The web service: API, the agent driver, the brief checks, the image providers |
+| `src/` | The web service: API, the agent driver, the brief checks, the image providers, the logo and headline overlay, the Telegram bot |
 | `public/` | The web page |
 | `Dockerfile`, `railway.json`, `deploy/`, `scripts/` | Deployment: Railway, DigitalOcean App Platform, a DigitalOcean droplet |
 | `test/` | Offline tests (free) and one live run |
@@ -129,8 +129,8 @@ environment like `environments/ad-research.yaml`. Then put the two IDs in `AD_AG
 npm start
 ```
 
-Open http://localhost:3000 and log in with your `APP_PASSWORD`. Write `מודעה ליום שישי: חלות, 2 ב-30, פלורנטין` and press **Create ad**. In about a minute you get the picture and
-the copy. Then try a change: "קצר יותר" (shorter), "make it about the babka", or tick **New picture**.
+Open http://localhost:3000 and log in with your `APP_PASSWORD`. Write `מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, תל אביב` and press **Create ad**. In about a minute you get the picture and
+the copy. Then try a change: "קצר יותר" (shorter), "make it about the bacon burger", or tick **New picture**.
 
 Watch the terminal. It shows each step and a link to the agent's session in the Claude Console, where you can read
 its searches and reasoning.
@@ -204,6 +204,48 @@ npm run deploy:droplet -- $IP        # copies .env (mode 600), installs, starts
 `sslip.io` turns the IP into a hostname, so Caddy can get a free certificate. Open `https://<IP>.sslip.io`. Redeploy
 after changes with `npm run deploy:droplet -- $IP`. Logs: `ssh root@$IP tail -f /opt/ad-agents/logs/server.log`.
 
+## 4a. Logo and headline on every picture
+
+Pictures come out with the client's logo at the top and the ad's headline at the bottom, on a maroon fade. The code
+does this after the image model has drawn (`src/overlay.mjs`), because image models misspell Hebrew and redraw a logo
+differently every time. The image prompt asks the model to leave the top and bottom fifth of the frame empty.
+
+- The picture as drawn is kept as `data/ads/<id>_<n>_raw.jpg`. If you change only the headline, the new one is put
+  on that picture again, with no new drawing and no cost.
+- `AD_OVERLAY=off` keeps pictures as drawn. If `sharp`, the logo or the font is missing, pictures also stay unchanged.
+- For another client: replace `assets/meatlocker-logo.svg` (made from the PDF with `pdftocairo -svg logo.pdf logo.svg`),
+  the colours in `src/overlay.mjs`, and, if you want, the font in `assets/fonts/` (Heebo, SIL Open Font License).
+
+The brand sheet also has a **shot list** (hero, cheese pull, cross-section, two burgers, in hand, overhead). The agent
+picks one per ad to fit the angle, so a feed of ads does not look like one repeated photo.
+
+## 4b. Make ads from Telegram (optional)
+
+The owner can chat with a bot instead of opening the web page: send the request, get the picture and the copy back
+in the same chat, and answer a draft in plain words. It uses the same checks and the same spending caps as the page.
+
+1. In Telegram, talk to **@BotFather**, send `/newbot`, and copy the token. Put it in `.env` as
+   `TELEGRAM_BOT_TOKEN=...` (or as a service variable in the cloud).
+2. Start the service (`npm start`). Send `/myid` to your bot. It answers with your chat id.
+3. Put that id in `.env` as `TELEGRAM_ALLOWED_CHAT_IDS=123456789` (several ids: separate them with commas) and
+   restart. Anyone not on the list can only ask the bot for their own id.
+
+| The owner sends | What happens |
+|---|---|
+| `מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, תל אביב` | A new ad. About a minute later: the picture with the copy as its caption |
+| `קצר יותר`, `make it about the bacon burger` | A change to the open ad. Copy-only changes come back as text |
+| `תמונה אחרת` or `new picture` | A new picture for the open ad |
+| `ok` or `👍` | Approves and closes the ad. Nothing is posted anywhere: publishing is the owner's |
+| `stop` | Closes the open ad without approving it |
+| `/new <text>` | Starts another ad while one is open |
+
+A chat has one open ad at a time. While it is open, every plain message is a change to it. The bot answers in Hebrew
+when the owner writes Hebrew, and in English otherwise.
+
+Run only **one** copy of the service for each bot. A laptop and a cloud deploy using the same token will fight over
+the messages, and the log says "another copy of this service polling the same bot". Stop the local one before you
+deploy, or give the cloud its own bot.
+
 ## 5. Make it your business
 
 | File | What it controls | After editing |
@@ -211,6 +253,7 @@ after changes with `npm run deploy:droplet -- $IP`. Logs: `ssh root@$IP tail -f 
 | `prompts/brand-sheet.md` | Who the business is, its voice, colours, hashtags, and what it never says | nothing; read on every ad |
 | `prompts/facts.md` | The only products, prices, branches and hours an ad may state | nothing |
 | `prompts/image-brand-layer.txt` | The photo style around every picture | nothing |
+| `assets/` | The client's logo (SVG) and the headline font | nothing |
 | `agents/ad-researcher.md` | The agent: model, tools, instructions, the brief's fields | `npm run agents:apply`, commit `claude-lock.json`, push |
 | `src/brief.mjs` | The checks every brief must pass: lengths, hashtags, facts, prices | `npm test` |
 

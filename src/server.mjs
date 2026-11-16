@@ -128,4 +128,5 @@ if (isMain) {
   createApp().listen(config.port, () => {
     info(`ad agents listening on http://localhost:${config.port}  (data: ${config.dataDir}, images: ${config.imageProvider})`);
   });
+  if (config.telegramToken) (await import('./telegram.mjs')).startTelegram();
 }

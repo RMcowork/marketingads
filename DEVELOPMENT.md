@@ -89,10 +89,34 @@ served with a Content Security Policy that allows only its own script.
 One HTTP server, a few small modules, and `@anthropic-ai/sdk`. `process.loadEnvFile` reads `.env`, which needs
 Node 20.12 or newer. That means less to update and less to audit.
 
+### 2.9 Telegram is a second front door, not a second system
+`src/telegram.mjs` calls `createJob` and `replyToJob`, the same functions as the web API, so the brief checks, the
+daily and parallel limits and the session budget apply without any copy of them. It uses long polling, so it needs no
+public URL and runs the same on a laptop and on Railway. The cost is that only one process may poll a given bot.
+
+Who may use it: `TELEGRAM_ALLOWED_CHAT_IDS`. The bot is public on Telegram, so without that list anyone could spend
+your API credit. A stranger can only send `/myid`. Groups and channels are ignored.
+
+A chat has at most one open ad, and its id is kept in `data/telegram-state.json` together with the last update read.
+While an ad is open, a plain message is a change to it. This matches how the owner writes (no need to tag a
+reply), and `ok`, `stop` or `/new` end it. A picture is sent as a photo with the copy as its caption (cut to
+Telegram's 1024-character limit); a copy-only change is sent as text. A job that was running when the service
+restarted is marked failed, and the owner is not told: they just send the message again.
+
+### 2.10 The logo and the headline are added in code
+`src/overlay.mjs` puts the logo and the headline on the finished picture with `sharp`. A model asked to draw words
+misspells them, Hebrew most of all, and a logo it draws changes every time, so neither is left to the model. To make
+room, `composePrompt` asks for the top and bottom fifth of the frame to stay empty. The picture as drawn is saved next
+to the branded one (`<id>_<n>_raw.jpg`), so a copy-only change that alters the headline only re-runs the overlay.
+If the overlay cannot run (a missing package, logo or font, or a picture it cannot read), the picture is used as
+drawn: an ad is never lost because of the overlay.
+
 ## 3. Tests
 
 ```bash
 npm test                # test/brief.mjs (the validator, caption and prompt) + test/server.mjs (the whole service)
+npm run test:overlay    # the logo and headline overlay, alone and through the server (free)
+npm run test:telegram   # the bot against a fake Telegram API, a fake agent and a mock image model (free)
 npm run test:ad-live    # one REAL ad without the web server (~$0.30); pass a request and an optional reply as arguments
 ```
 

@@ -20,7 +20,7 @@ The image model never sees the owner's message or the agent's reasoning. It sees
 
 ### Brand layer
 
-Written by hand, once, from the brand sheet. It is the same in every ad, which is what makes ten ads look like one bakery.
+Written by hand, once, from the brand sheet. It is the same in every ad, which is what makes ten ads look like one restaurant.
 
 ```text
 A photograph for a neighbourhood bakery's social media. Natural morning light

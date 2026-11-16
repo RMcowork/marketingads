@@ -13,7 +13,7 @@ const PASSWORD = 'test-password-123';
 const BASE = `http://localhost:${PORT}`;
 const env = {
   ...process.env, PORT: String(PORT), APP_PASSWORD: PASSWORD, AD_AGENT_DRIVER: 'fake', IMAGE_PROVIDER: 'mock',
-  FAKE_AGENT_LOG: FAKE_LOG, FAKE_AGENT_DELAY_MS: '300', MAX_RUNS_PER_DAY: '7', MAX_PARALLEL_RUNS: '2', DATA_DIR: '',
+  FAKE_AGENT_LOG: FAKE_LOG, FAKE_AGENT_DELAY_MS: '300', MAX_RUNS_PER_DAY: '7', MAX_PARALLEL_RUNS: '2', DATA_DIR: '', TELEGRAM_BOT_TOKEN: '', TELEGRAM: '',
 };
 
 const procs = [];
@@ -58,7 +58,7 @@ try {
   check('a wrong password is 401', (await get('/api/info', auth('nope'))).status === 401);
   check('a password with non-Latin characters is handled', (await get('/api/info', { authorization: 'Basic ' + Buffer.from('x:סיסמה').toString('base64') })).status === 401);
   const infoRes = await (await get('/api/info')).json();
-  check('GET /api/info names the brand from the brand sheet', infoRes.brand === "Dana's Bakery" && infoRes.imageProvider === 'mock', JSON.stringify(infoRes));
+  check('GET /api/info names the brand from the brand sheet', infoRes.brand === 'MeatLocker' && infoRes.imageProvider === 'mock', JSON.stringify(infoRes));
 
   // Validation
   check('an empty request is 400', (await post('/api/ads', { request: '  ' })).status === 400);
@@ -67,13 +67,13 @@ try {
   check('a path-traversal id is 404', (await get('/api/ads/..%2F..%2Fetc%2Fpasswd/image')).status === 404);
 
   // A new ad: 202, then a draft with a picture (run 1)
-  const created = await post('/api/ads', { request: 'מודעה ליום שישי: חלות, 2 ב-30, פלורנטין' });
+  const created = await post('/api/ads', { request: 'מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, תל אביב' });
   const a = await created.json();
   check('POST /api/ads answers 202 with status working', created.status === 202 && a.status === 'working' && /^ad_/.test(a.id));
   check('a second change while it runs is 409', (await post(`/api/ads/${a.id}/reply`, { text: 'קצר יותר' })).status === 409);
   const draft = await until(a.id);
   check('the job ends as a draft with copy and one picture', draft.status === 'draft' && draft.brief?.copy?.headline && draft.image?.count === 1, draft.status);
-  check('the caption joins headline, text, call to action and hashtags', draft.caption.startsWith(draft.brief.copy.headline) && draft.caption.includes('#המאפייהשלדנה'));
+  check('the caption joins headline, text, call to action and hashtags', draft.caption.startsWith(draft.brief.copy.headline) && draft.caption.includes('#MeatLocker'));
   const kick = fake().find((e) => e.op === 'turn');
   check('the kickoff carries brand sheet, facts with today\'s date, and the request', /<brand_sheet>/.test(kick?.text) && /<facts>\nToday: /.test(kick?.text) && /<request>\nמודעה ליום שישי/.test(kick?.text));
   const img = await get(draft.image.url);
@@ -84,7 +84,7 @@ try {
   // A copy-only revision keeps the picture (run 2)
   check('a revision answers 202', (await post(`/api/ads/${a.id}/reply`, { text: 'קצר יותר' })).status === 202);
   const shorter = await until(a.id);
-  check('a copy-only revision keeps the same picture', shorter.status === 'draft' && shorter.image.count === 1 && shorter.brief.copy.headline === 'חלות ליום שישי');
+  check('a copy-only revision keeps the same picture', shorter.status === 'draft' && shorter.image.count === 1 && shorter.brief.copy.headline === 'דאבל צ׳יזבורגר ליום שישי');
   check('the revision went into the same session as a <reply>', fake().filter((e) => e.op === 'turn' && e.sessionId === kick.sessionId).at(-1)?.text.startsWith('<reply>\nקצר יותר'));
 
   // "New picture" draws again (run 3)
@@ -99,22 +99,22 @@ try {
   check('a question from the agent shows as needs_input', asked.status === 'needs_input' && asked.agentText.length > 0 && !asked.brief);
 
   // A rejected brief is fixed in the same run (run 5)
-  const r = await (await post('/api/ads', { request: '[BADPRICE] מודעה ליום שישי: חלות, 2 ב-30, פלורנטין' })).json();
+  const r = await (await post('/api/ads', { request: '[BADPRICE] מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, תל אביב' })).json();
   const fixed = await until(r.id);
   check('a brief rejected by the checks is fixed and counted', fixed.status === 'draft' && fixed.rejections === 1);
-  check('the rejection named the unlisted price', fake().some((e) => e.op === 'rejected' && e.problems.some((p) => /₪25/.test(p))));
+  check('the rejection named the unlisted price', fake().some((e) => e.op === 'rejected' && e.problems.some((p) => /₪95/.test(p))));
 
   // List
   const list = await (await get('/api/ads')).json();
   check('GET /api/ads lists the ads, newest first', list.ads.length === 3 && list.ads[0].id === r.id);
 
   // Limits: two parallel runs at most, seven runs a day
-  const p1 = await (await post('/api/ads', { request: 'מודעה לבבקה' })).json();               // run 6
-  const p2 = await (await post('/api/ads', { request: 'מודעה לקרואסון' })).json();             // run 7
-  const third = await post('/api/ads', { request: 'מודעה לרוגלך' });
+  const p1 = await (await post('/api/ads', { request: 'מודעה לבייקון בורגר' })).json();               // run 6
+  const p2 = await (await post('/api/ads', { request: 'מודעה לצ׳יפס' })).json();             // run 7
+  const third = await post('/api/ads', { request: 'מודעה למילקשייק' });
   check('a third parallel run is refused with 429', third.status === 429, String(third.status));
   await until(p1.id); await until(p2.id);
-  const overDaily = await post('/api/ads', { request: 'מודעה לקפה' });
+  const overDaily = await post('/api/ads', { request: 'מודעה לבורגר פטריות' });
   check('the daily run limit is enforced with 429', overDaily.status === 429 && /MAX_RUNS_PER_DAY/.test((await overDaily.json()).error));
 
   // Restart

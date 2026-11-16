@@ -9,9 +9,11 @@
   },
   "scripts": {
     "start": "node src/server.mjs",
-    "test": "node test/brief.mjs && node test/server.mjs",
+    "test": "node test/brief.mjs && node test/server.mjs && node test/telegram.mjs && node test/overlay.mjs",
     "test:brief": "node test/brief.mjs",
     "test:server": "node test/server.mjs",
+    "test:telegram": "node test/telegram.mjs",
+    "test:overlay": "node test/overlay.mjs",
     "test:ad-live": "node test/ad-live.mjs",
     "agents:plan": "node scripts/agents.mjs plan",
     "agents:apply": "node scripts/agents.mjs apply",
@@ -20,6 +22,7 @@
     "deploy:droplet": "deploy/deploy.sh"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.124.0"
+    "@anthropic-ai/sdk": "^0.124.0",
+    "sharp": "^0.35.5"
   }
 }
