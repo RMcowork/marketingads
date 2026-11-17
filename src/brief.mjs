@@ -6,6 +6,12 @@ const ASPECTS = new Set(['square', 'portrait', 'landscape']);
 const HEBREW = /[֐-׿]/;
 const PRICE = /₪\s?\d[\d,.]*|\d[\d,.]*\s?₪|\d[\d,.]*\s?ש["״]?ח|\d[\d,.]*\s?(?:nis|shekels?)/gi;
 
+// Food-law and pork claims. The menu has cheese and meat together, so an ad must never claim or hint at a
+// religious dietary status, and bacon and pork are not on the menu at all. Allowed only when the owner wrote
+// the word in <request>; <facts> is not consulted, so it cannot unlock them.
+const RELIGIOUS = /כשר(?!ון)|כשרות|הכשר|מהדרין|חלאל|kosher|kashrut|halal|كوشر|حلال/i;
+const PORK = /חזיר|בייקון|\bbacon\b|\bpork\b|\bpigs?\b|\bham\b|خنزير|بيكون/i;
+
 const norm = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 const str = (v) => (typeof v === 'string' ? v : '');
 const words = (s) => norm(s).split(' ').filter(Boolean);
@@ -66,8 +72,21 @@ export function validateBrief(brief, ctx) {
     }
   }
 
+  // food-law and meat-type claims (brand sheet "Never"), in the copy, the hashtags and any text on the picture
+  const claimText = `${copyText} ${tags.join(' ')} ${str(image.text_in_image)}`;
+  const ownerText = norm(ctx.request ?? '');
+  if (RELIGIOUS.test(claimText) && !RELIGIOUS.test(ownerText)) {
+    p.push('The copy uses religious-dietary wording (kosher, halal or similar). Nothing in <facts> says that, and the menu has cheese and meat together. Remove it.');
+  }
+  if (PORK.test(claimText) && !PORK.test(ownerText)) {
+    p.push('The copy mentions bacon, pork, a pig or ham. None of them is on the menu in <facts>. Remove it.');
+  }
+
   // image
   const scene = str(image.scene);
+  if ((PORK.test(scene) && !PORK.test(ownerText)) || (RELIGIOUS.test(scene) && !RELIGIOUS.test(ownerText))) {
+    p.push('image.scene mentions bacon, pork, a pig, ham or a religious-dietary mark. None of them belongs in the picture. Show only ingredients from <facts>, and no stamps or symbols.');
+  }
   const sceneWords = scene.match(/[A-Za-z][A-Za-z'-]*/g)?.length ?? 0;
   if (!norm(scene)) p.push('image.scene is empty.');
   else if (HEBREW.test(scene)) p.push('image.scene is in Hebrew. Write the scene in English.');

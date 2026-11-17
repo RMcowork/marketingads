@@ -204,24 +204,25 @@ async function agentTurn(job, message, ctx, first, forceRedraw = false) {
     const drawMs = Date.now() - t1;
     const n = job.images.length + 1;
     const headline = turn.brief.copy.headline;
-    const branded = await brandImage(bytes, { headline, hasText: Boolean(turn.brief.image.text_in_image) });
+    const branded = await brandImage(bytes, { headline, hasText: Boolean(turn.brief.image.text_in_image), seed: `${job.id}_${n}` });
     const file = `${job.id}_${n}.jpg`;
     writeFileSync(join(ADS_DIR, file), branded.bytes);
     // The picture as drawn is kept next to the branded one, so a new headline can be put on it without drawing again.
     let rawFile = null;
     if (branded.branded) { rawFile = `${job.id}_${n}_raw.jpg`; writeFileSync(join(ADS_DIR, rawFile), bytes); }
-    job.images.push({ file, rawFile, headline: branded.branded ? headline : null, aspect: turn.brief.image.aspect, prompt, bytes: branded.bytes.length, drawMs, usage: imageUsage ?? null });
+    job.images.push({ file, rawFile, headline: branded.branded ? headline : null, font: branded.font, aspect: turn.brief.image.aspect, prompt, bytes: branded.bytes.length, drawMs, usage: imageUsage ?? null });
     info(`${job.id}: picture ${job.images.length} drawn (${branded.bytes.length} bytes, ${drawMs} ms${branded.branded ? ', logo and headline added' : ''})`);
   } else {
     // A copy-only change: if the headline changed, the one on the picture is out of date. Put the new one on the raw picture.
     const last = job.images.at(-1);
     const headline = turn.brief.copy.headline;
     if (last?.rawFile && last.headline !== headline && existsSync(join(ADS_DIR, last.rawFile))) {
-      const branded = await brandImage(readFileSync(join(ADS_DIR, last.rawFile)), { headline, hasText: Boolean(turn.brief.image.text_in_image) });
+      // The font stays the one this picture already has, unless the headline changed language.
+      const branded = await brandImage(readFileSync(join(ADS_DIR, last.rawFile)), { headline, hasText: Boolean(turn.brief.image.text_in_image), seed: `${job.id}_${job.images.length}`, font: last.font ?? '' });
       if (branded.branded) {
         const file = `${job.id}_${job.images.length + 1}.jpg`;
         writeFileSync(join(ADS_DIR, file), branded.bytes);
-        job.images.push({ ...last, file, headline, bytes: branded.bytes.length });
+        job.images.push({ ...last, file, headline, font: branded.font, bytes: branded.bytes.length });
         info(`${job.id}: new headline put on the picture`);
       }
     }

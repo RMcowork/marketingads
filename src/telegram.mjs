@@ -27,7 +27,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // Two languages, picked from the owner's own message. Everything the bot says by itself is here.
 const T = {
   help: {
-    he: 'שלחו הודעה עם מה לפרסם: מוצר, מבצע, יום וסניף. למשל:\nמודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, תל אביב\n\nאחרי שמגיעה טיוטה, כל הודעה שלכם היא בקשה לשינוי ("קצר יותר"). "תמונה אחרת" מצייר תמונה חדשה. "ok" מאשר וסוגר. "/new" ואחריו טקסט פותח מודעה חדשה.',
+    he: 'שלחו הודעה עם מה לפרסם: מוצר, מבצע, יום וסניף. למשל:\nמודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, מבשרת ציון\n\nאחרי שמגיעה טיוטה, כל הודעה שלכם היא בקשה לשינוי ("קצר יותר"). "תמונה אחרת" מצייר תמונה חדשה. "ok" מאשר וסוגר. "/new" ואחריו טקסט פותח מודעה חדשה.',
     en: 'Write what to advertise: product, offer, day and branch. For example:\nAd for Friday: Double Cheeseburger, 2 for ₪100, Tel Aviv\n\nOnce a draft arrives, every message you send is a change request ("shorter"). "new picture" draws a new picture. "ok" approves and closes it. "/new" and then text starts another ad.',
   },
   working: { he: 'קיבלתי, עובד על זה. זה לוקח בערך דקה.', en: 'Got it. Working on it, about a minute.' },

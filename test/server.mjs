@@ -67,7 +67,7 @@ try {
   check('a path-traversal id is 404', (await get('/api/ads/..%2F..%2Fetc%2Fpasswd/image')).status === 404);
 
   // A new ad: 202, then a draft with a picture (run 1)
-  const created = await post('/api/ads', { request: 'מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, תל אביב' });
+  const created = await post('/api/ads', { request: 'מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, מבשרת ציון' });
   const a = await created.json();
   check('POST /api/ads answers 202 with status working', created.status === 202 && a.status === 'working' && /^ad_/.test(a.id));
   check('a second change while it runs is 409', (await post(`/api/ads/${a.id}/reply`, { text: 'קצר יותר' })).status === 409);
@@ -99,7 +99,7 @@ try {
   check('a question from the agent shows as needs_input', asked.status === 'needs_input' && asked.agentText.length > 0 && !asked.brief);
 
   // A rejected brief is fixed in the same run (run 5)
-  const r = await (await post('/api/ads', { request: '[BADPRICE] מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, תל אביב' })).json();
+  const r = await (await post('/api/ads', { request: '[BADPRICE] מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, מבשרת ציון' })).json();
   const fixed = await until(r.id);
   check('a brief rejected by the checks is fixed and counted', fixed.status === 'draft' && fixed.rejections === 1);
   check('the rejection named the unlisted price', fake().some((e) => e.op === 'rejected' && e.problems.some((p) => /₪95/.test(p))));
@@ -109,7 +109,7 @@ try {
   check('GET /api/ads lists the ads, newest first', list.ads.length === 3 && list.ads[0].id === r.id);
 
   // Limits: two parallel runs at most, seven runs a day
-  const p1 = await (await post('/api/ads', { request: 'מודעה לבייקון בורגר' })).json();               // run 6
+  const p1 = await (await post('/api/ads', { request: 'מודעה לסמאש אוניון בורגר' })).json();               // run 6
   const p2 = await (await post('/api/ads', { request: 'מודעה לצ׳יפס' })).json();             // run 7
   const third = await post('/api/ads', { request: 'מודעה למילקשייק' });
   check('a third parallel run is refused with 429', third.status === 429, String(third.status));

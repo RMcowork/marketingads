@@ -63,7 +63,7 @@ const call = (path, opts = {}) => fetch(BASE + path, { ...opts, headers: { ...au
 async function until(id) { for (let i = 0; i < 80; i++) { const j = await (await call(`/api/ads/${id}`)).json(); if (j.status !== 'working') return j; await sleep(100); } throw new Error('timeout'); }
 try {
   for (let i = 0; i < 40; i++) { try { await fetch(`${BASE}/health`); break; } catch { await sleep(150); } }
-  const a = await (await call('/api/ads', { method: 'POST', body: JSON.stringify({ request: 'מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, תל אביב' }) })).json();
+  const a = await (await call('/api/ads', { method: 'POST', body: JSON.stringify({ request: 'מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, מבשרת ציון' }) })).json();
   const d1 = await until(a.id);
   const img1 = Buffer.from(await (await call(d1.image.url)).arrayBuffer());
   const m1 = await sharp(img1).metadata();

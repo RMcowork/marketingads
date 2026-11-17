@@ -40,11 +40,11 @@ The branch, hours and prices are placeholder data for MeatLocker until the owner
 Today: Wednesday 2026-11-11. Time zone: Asia/Jerusalem.
 Branch: Tel Aviv
 Opening hours: Sunday to Thursday 12:00-23:00, Friday 12:00-17:00, Saturday 19:00-23:00.
-Products and prices: Mushroom Burger ₪56, Double Cheeseburger ₪62, Smash Onion Burger ₪54, Bacon Burger ₪64, Fries ₪18, Milkshake ₪24, Soft drink ₪12.
+Products and prices: Mushroom Burger ₪56, Double Cheeseburger ₪62, Smash Onion Burger ₪54, Fries ₪18, Milkshake ₪24, Soft drink ₪12.
 </facts>
 
 <request>
-מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, תל אביב
+מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, מבשרת ציון
 </request>
 ```
 
@@ -58,7 +58,7 @@ When the owner answers a draft, send their reply into the **same session**. The 
 </reply>
 ```
 
-Examples of replies the agent handles: "קצר יותר", "another image", "make it about the bacon burger", "בלי אימוג'י".
+Examples of replies the agent handles: "קצר יותר", "another image", "make it about the smash onion burger", "בלי אימוג'י".
 
 Two replies never reach the agent, because the service answers them itself:
 

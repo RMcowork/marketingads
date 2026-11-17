@@ -9,10 +9,10 @@
     "./agents/ad-researcher.md": {
       "kind": "agent",
       "id": "agent_01LmfYz3HgDmxgECx7A2MAsg",
-      "version": "1",
-      "hash": "83853534f7295b22eb6e91461ee21c4c",
-      "remote_hash": "d0ae930ee10b67cc9accd314a907e2c4",
-      "stamp": "1"
+      "version": "2",
+      "hash": "c73c14d2073b0f52ad5b12ab083e0fce",
+      "remote_hash": "1a8c1a666a242ce6d56d9f149a38da5c",
+      "stamp": "2"
     },
     "./environments/ad-research.yaml": {
       "kind": "environment",

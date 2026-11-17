@@ -12,7 +12,7 @@ const TOKEN = '111:TESTTOKEN_do_not_log_me';
 const OWNER = 111;
 const STRANGER = 999;
 const FAKE_PORT = 3105;
-const REQUEST = 'מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, תל אביב';
+const REQUEST = 'מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, מבשרת ציון';
 
 // ---------- a fake Telegram Bot API ----------
 const sent = [];          // everything the bot sent: { kind: 'text' | 'photo', chat, text, mid }

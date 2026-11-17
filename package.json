@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "node src/server.mjs",
-    "test": "node test/brief.mjs && node test/server.mjs && node test/telegram.mjs && node test/overlay.mjs",
+    "test": "node test/brief.mjs && node test/fonts.mjs && node test/server.mjs && node test/telegram.mjs && node test/overlay.mjs",
+    "test:fonts": "node test/fonts.mjs",
     "test:brief": "node test/brief.mjs",
     "test:server": "node test/server.mjs",
     "test:telegram": "node test/telegram.mjs",
@@ -23,6 +24,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
+    "bidi-js": "^1.1.0",
+    "fontkit": "^3.0.0",
     "sharp": "^0.35.5"
   }
 }

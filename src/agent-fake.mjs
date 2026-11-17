@@ -18,15 +18,15 @@ function makeBrief({ redraw, bad, short, newHead }) {
     angle: 'Friday lunch is burger time in Tel Aviv.',
     copy: {
       headline: newHead ? 'כותרת חדשה' : short ? 'דאבל צ׳יזבורגר ליום שישי' : 'דאבל צ׳יזבורגר ליום שישי',
-      caption: bad ? 'שני דאבל צ׳יזבורגר ב-₪95 בתל אביב, רק השבוע' : short ? 'שני פטיס צרובים וגבינה נמסה. 2 ב-100. בואו.' : 'שני פטיס צרובים, גבינה נמסה, בצל מקורמל ומלפפון חמוץ. 2 ב-100 בתל אביב. בואו רעבים ביום שישי.',
-      cta: 'יום שישי, תל אביב, מ-12:00',
+      caption: bad ? 'שני דאבל צ׳יזבורגר ב-₪95 במבשרת ציון, רק השבוע' : short ? 'שני פטיס צרובים וגבינה נמסה. 2 ב-100. בואו.' : 'שני פטיס צרובים, גבינה נמסה, בצל מקורמל ומלפפון חמוץ. 2 ב-100 במבשרת ציון. בואו רעבים ביום שישי.',
+      cta: 'יום שישי, מבשרת ציון, מ-12:00',
       hashtags: ['#MeatLocker', '#המבורגר', '#תלאביב'],
     },
     image: { scene: SCENE, aspect: 'square', text_in_image: '', avoid: ['faces', 'logos'] },
     facts_used: ['Double Cheeseburger ₪62'],
     sources: [],
     redraw_image: redraw,
-    notes_for_owner: short ? '' : 'הנחתי שהמבצע הוא לסניף תל אביב בלבד.',
+    notes_for_owner: short ? '' : 'הנחתי שהמבצע הוא לסניף מבשרת ציון בלבד.',
   };
 }
 
@@ -55,7 +55,7 @@ export async function runTurn({ sessionId, text, ctx }) {
   let v = validateBrief(brief, ctx);
   if (!v.ok) { rejections = 1; log({ op: 'rejected', sessionId, problems: v.problems }); brief = makeBrief({ redraw, bad: false, short, newHead }); v = validateBrief(brief, ctx); }
   s.briefs += 1;
-  return { brief: v.ok ? brief : null, text: v.ok ? 'המודעה על דאבל צ׳יזבורגר ליום שישי בתל אביב.' : v.result, stop: 'end_turn', rejections, problems: v.problems, error: null };
+  return { brief: v.ok ? brief : null, text: v.ok ? 'המודעה על דאבל צ׳יזבורגר ליום שישי במבשרת ציון.' : v.result, stop: 'end_turn', rejections, problems: v.problems, error: null };
 }
 
 export async function getUsage() { return null; }

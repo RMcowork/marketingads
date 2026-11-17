@@ -6,7 +6,7 @@ finished ad draft:
 - **the copy**: headline, post text, call to action and hashtags, in the brand's voice;
 - **a picture**, drawn by an image model.
 
-Ask for changes in plain words. The agent keeps the conversation, so "shorter" or "make it about the bacon burger" takes
+Ask for changes in plain words. The agent keeps the conversation, so "shorter" or "make it about the smash onion burger" takes
 seconds. Tick "New picture" and it draws again.
 
 ```
@@ -129,8 +129,8 @@ environment like `environments/ad-research.yaml`. Then put the two IDs in `AD_AG
 npm start
 ```
 
-Open http://localhost:3000 and log in with your `APP_PASSWORD`. Write `מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, תל אביב` and press **Create ad**. In about a minute you get the picture and
-the copy. Then try a change: "קצר יותר" (shorter), "make it about the bacon burger", or tick **New picture**.
+Open http://localhost:3000 and log in with your `APP_PASSWORD`. Write `מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, מבשרת ציון` and press **Create ad**. In about a minute you get the picture and
+the copy. Then try a change: "קצר יותר" (shorter), "make it about the smash onion burger", or tick **New picture**.
 
 Watch the terminal. It shows each step and a link to the agent's session in the Claude Console, where you can read
 its searches and reasoning.
@@ -212,9 +212,23 @@ differently every time. The image prompt asks the model to leave the top and bot
 
 - The picture as drawn is kept as `data/ads/<id>_<n>_raw.jpg`. If you change only the headline, the new one is put
   on that picture again, with no new drawing and no cost.
-- `AD_OVERLAY=off` keeps pictures as drawn. If `sharp`, the logo or the font is missing, pictures also stay unchanged.
-- For another client: replace `assets/meatlocker-logo.svg` (made from the PDF with `pdftocairo -svg logo.pdf logo.svg`),
-  the colours in `src/overlay.mjs`, and, if you want, the font in `assets/fonts/` (Heebo, SIL Open Font License).
+- `AD_OVERLAY=off` keeps pictures as drawn. If `sharp`, `fontkit`, the logo or a font file is missing, pictures also stay unchanged.
+- **Fonts.** The headline is drawn in a modern, clear font for its language, with three or more per language, all free
+  (SIL Open Font License, licences next to the files in `assets/fonts/`). Each ad gets one and keeps it, also when only
+  its headline changes. Set `AD_FONT=anton` (or another key) to use one for every ad.
+
+  | Language | Fonts (key) |
+  |---|---|
+  | Hebrew | Heebo ExtraBold (`heebo`), Rubik ExtraBold (`rubik`), Secular One (`secular`) |
+  | English | Poppins ExtraBold (`poppins`), Anton, in capitals (`anton`), Rubik ExtraBold (`rubik`) |
+  | Arabic | Tajawal ExtraBold (`tajawal`), Almarai ExtraBold (`almarai`), Rubik ExtraBold (`rubik`) |
+
+  The language is read from the headline. A character a font lacks (a `₪` sign, an English burger name in a Hebrew
+  headline) is drawn from Rubik. The text is drawn as vector shapes by `src/headline.mjs`, with `fontkit` and `bidi-js`
+  for Arabic joining and mixed Hebrew, English and number order, because `sharp`'s own text drawing ignores font
+  files on a Mac. To add a font, put the file in `assets/fonts/` and add a line to `src/fonts.mjs`.
+- For another client: replace `assets/meatlocker-logo.svg` (made from the PDF with `pdftocairo -svg logo.pdf logo.svg`)
+  and the colours in `src/overlay.mjs`.
 
 The brand sheet also has a **shot list** (hero, cheese pull, cross-section, two burgers, in hand, overhead). The agent
 picks one per ad to fit the angle, so a feed of ads does not look like one repeated photo.
@@ -232,8 +246,8 @@ in the same chat, and answer a draft in plain words. It uses the same checks and
 
 | The owner sends | What happens |
 |---|---|
-| `מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, תל אביב` | A new ad. About a minute later: the picture with the copy as its caption |
-| `קצר יותר`, `make it about the bacon burger` | A change to the open ad. Copy-only changes come back as text |
+| `מודעה ליום שישי: דאבל צ׳יזבורגר, 2 ב-100, מבשרת ציון` | A new ad. About a minute later: the picture with the copy as its caption |
+| `קצר יותר`, `make it about the smash onion burger` | A change to the open ad. Copy-only changes come back as text |
 | `תמונה אחרת` or `new picture` | A new picture for the open ad |
 | `ok` or `👍` | Approves and closes the ad. Nothing is posted anywhere: publishing is the owner's |
 | `stop` | Closes the open ad without approving it |
