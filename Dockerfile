@@ -1,7 +1,7 @@
 # One image for Railway, DigitalOcean App Platform, or any container host.
 # The base image is pinned by digest, so a changed or tampered "22-slim" tag cannot slip into a build. Dependabot
 # (.github/dependabot.yml) proposes new digests as pull requests. To update by hand, look up the digest of node:22-slim.
-FROM node:22-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee
+FROM node:26-slim@sha256:e6bedef217677b276c591795e169840edd9096dbf13f29df8ef8d1856b8820bc
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
