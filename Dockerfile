@@ -1,9 +1,12 @@
 # One image for Railway, DigitalOcean App Platform, or any container host.
-FROM node:22-slim
+# The base image is pinned by digest, so a changed or tampered "22-slim" tag cannot slip into a build. Dependabot
+# (.github/dependabot.yml) proposes new digests as pull requests. To update by hand, look up the digest of node:22-slim.
+FROM node:22-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+# --ignore-scripts: no dependency may run code at install time (none of ours needs to; the lockfile has no install scripts).
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY . .
 # Ads and their pictures are saved under /app/data. To keep them across deploys, mount a volume there (Railway: see README).
 # The process runs as root on purpose: Railway mounts volumes owned by root, and a non-root user could not write to it.

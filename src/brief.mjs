@@ -1,7 +1,14 @@
 // Checks an ad brief the researcher agent submitted. Returns the exact text that goes back
 // to the agent as the tool result: "accepted", or "rejected" plus one line per problem that
 // names the field, what is wrong and what would be right (prompts/kickoff-message.md).
-const LIMITS = { headline: 40, cta: 60, caption: 600, notes: 200, textInImageWords: 5, sceneMin: 40, sceneMax: 120, sources: 5 };
+const LIMITS = {
+  headline: 40, cta: 60, caption: 600, notes: 200, textInImageWords: 5, sceneMin: 40, sceneMax: 120, sources: 5,
+  // Everything the model writes that is shown to people, put into the image prompt or sent to the reviewer has a size cap.
+  angle: 300, hashtag: 60, factsUsed: 12, fact: 300, avoid: 10, avoidItem: 60, textInImageChars: 60, sourceUrl: 500, sourceNote: 200,
+};
+// The number in a price, so "₪62" is compared with "₪62" and never found inside "₪620" or matched by "₪6".
+const amount = (price) => price.replace(/[^\d.,]/g, '').replace(/[,.]+$/, '');
+const amountsIn = (text) => new Set((String(text).slice(0, 5000).match(PRICE) ?? []).map(amount));
 const ASPECTS = new Set(['square', 'portrait', 'landscape']);
 const HEBREW = /[֐-׿]/;
 const PRICE = /₪\s?\d[\d,.]*|\d[\d,.]*\s?₪|\d[\d,.]*\s?ש["״]?ח|\d[\d,.]*\s?(?:nis|shekels?)/gi;
@@ -40,6 +47,7 @@ export function validateBrief(brief, ctx) {
   else if (!requestHasHebrew && lang === 'he') p.push('language is "he" but the owner did not write in Hebrew. Match the language of the request.');
 
   if (!norm(b.angle)) p.push('angle is empty. State the one idea this ad is built on, in one sentence.');
+  else if (str(b.angle).length > LIMITS.angle) p.push(`angle is ${str(b.angle).length} characters. The limit is ${LIMITS.angle}: one sentence.`);
 
   // copy
   const headline = str(copy.headline), caption = str(copy.caption), cta = str(copy.cta);
@@ -54,20 +62,28 @@ export function validateBrief(brief, ctx) {
   const tags = Array.isArray(copy.hashtags) ? copy.hashtags.map(str).map(norm).filter(Boolean) : [];
   if (tags.length < 3 || tags.length > 6) p.push(`copy.hashtags has ${tags.length} items. Use 3 to 6 hashtags.`);
   const badTag = tags.find((t) => !t.startsWith('#') || /\s/.test(t));
-  if (badTag) p.push(`copy.hashtags contains "${badTag}". Each hashtag starts with # and has no spaces.`);
+  if (badTag) p.push(`copy.hashtags contains "${badTag.slice(0, 40)}". Each hashtag starts with # and has no spaces.`);
+  else if (tags.some((t) => t.length > LIMITS.hashtag)) p.push(`a hashtag is longer than ${LIMITS.hashtag} characters. Use short hashtags.`);
   const must = requiredHashtag(ctx.brandSheet);
   if (must && !tags.includes(must)) p.push(`copy.hashtags must include ${must} (the brand sheet says it is always used).`);
 
   // facts
   const factsUsed = Array.isArray(b.facts_used) ? b.facts_used.map(str).map(norm).filter(Boolean) : [];
   const allowed = norm(`${ctx.facts ?? ''} ${ctx.request ?? ''}`);
-  for (const f of factsUsed) {
-    if (!allowed.includes(f)) p.push(`facts_used contains "${f}", which does not appear word for word in <facts> or <request>. Copy facts exactly from there.`);
+  if (factsUsed.length > LIMITS.factsUsed) p.push(`facts_used has ${factsUsed.length} items. The limit is ${LIMITS.factsUsed}.`);
+  else if (factsUsed.some((f) => f.length > LIMITS.fact)) p.push(`a facts_used entry is longer than ${LIMITS.fact} characters. List one short fact per entry.`);
+  else {
+    for (const f of factsUsed) {
+      if (!allowed.includes(f)) p.push(`facts_used contains "${f}", which does not appear word for word in <facts> or <request>. Copy facts exactly from there.`);
+    }
   }
+  // Prices are compared as whole amounts: "₪6" is not covered by "₪62", and "₪10" is not covered by a request that says "₪100".
+  // The text is cut first so a huge answer cannot make the pattern slow.
   const copyText = `${headline} ${caption} ${cta}`;
-  const usedText = factsUsed.join(' ');
-  for (const price of new Set((copyText.match(PRICE) ?? []).map((m) => norm(m).replace(/[,.]+$/, '')))) {
-    if (!usedText.includes(price) && !norm(ctx.request ?? '').includes(price)) {
+  const listed = amountsIn(factsUsed.join(' '));
+  const fromOwner = amountsIn(ctx.request ?? '');
+  for (const price of new Set((copyText.slice(0, 3000).match(PRICE) ?? []).map((m) => norm(m).replace(/[,.]+$/, '')))) {
+    if (!listed.has(amount(price)) && !fromOwner.has(amount(price))) {
       p.push(`copy states "${price}", which is not in facts_used. Use only prices from <facts> or <request>, and list them in facts_used.`);
     }
   }
@@ -95,12 +111,19 @@ export function validateBrief(brief, ctx) {
   if (!ASPECTS.has(image.aspect)) p.push('image.aspect must be square, portrait or landscape.');
   const tii = str(image.text_in_image);
   if (words(tii).length > LIMITS.textInImageWords) p.push(`image.text_in_image has ${words(tii).length} words. The limit is ${LIMITS.textInImageWords}, or an empty string for no text.`);
+  else if (tii.length > LIMITS.textInImageChars) p.push(`image.text_in_image is ${tii.length} characters. The limit is ${LIMITS.textInImageChars}.`);
   if (!Array.isArray(image.avoid)) p.push('image.avoid must be a list (empty if nothing to avoid).');
+  else if (image.avoid.length > LIMITS.avoid || image.avoid.some((a) => typeof a !== 'string' || a.length > LIMITS.avoidItem)) {
+    p.push(`image.avoid must have at most ${LIMITS.avoid} short items (${LIMITS.avoidItem} characters each), all text.`);
+  }
 
   // the rest
   if (Array.isArray(b.sources)) {
     if (b.sources.length > LIMITS.sources) p.push(`sources has ${b.sources.length} items. The limit is ${LIMITS.sources}.`);
     if (b.sources.some((s) => !s || typeof s.url !== 'string' || !/^https?:\/\//.test(s.url))) p.push('every sources entry needs a url starting with http(s).');
+    else if (b.sources.some((s) => s.url.length > LIMITS.sourceUrl || /\s/.test(s.url) || (s.note != null && (typeof s.note !== 'string' || s.note.length > LIMITS.sourceNote)))) {
+      p.push(`a sources entry has a url over ${LIMITS.sourceUrl} characters, a url with spaces, or a note over ${LIMITS.sourceNote} characters.`);
+    }
   } else p.push('sources must be a list (empty if none).');
   if (typeof b.redraw_image !== 'boolean') p.push('redraw_image must be true or false.');
   const notes = str(b.notes_for_owner);

@@ -9,8 +9,10 @@
   },
   "scripts": {
     "start": "node src/server.mjs",
-    "test": "node test/brief.mjs && node test/fonts.mjs && node test/review.mjs && node test/server.mjs && node test/telegram.mjs && node test/overlay.mjs",
+    "test": "node test/brief.mjs && node test/fonts.mjs && node test/review.mjs && node test/security.mjs && node test/server.mjs && node test/telegram.mjs && node test/overlay.mjs",
     "test:review": "node test/review.mjs",
+    "test:security": "node test/security.mjs",
+    "audit": "npm audit --omit=dev && npm audit signatures",
     "test:fonts": "node test/fonts.mjs",
     "test:brief": "node test/brief.mjs",
     "test:server": "node test/server.mjs",

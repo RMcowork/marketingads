@@ -1,5 +1,9 @@
 # Ad agents: research, copy and a picture, deployed to the cloud
 
+> **⚠️ Read before you deploy: [SECURITY-ASSESSMENT.md](SECURITY-ASSESSMENT.md).** It lists what the security review
+> (OWASP Top 10:2025) found and fixed, and a checklist of **things only you can do**. The first one: replace the
+> `APP_PASSWORD` with a long random one (`openssl rand -base64 24`). A short password is refused in the cloud.
+
 A course project. You write one line, like "an ad for Friday: Double Cheeseburger, 2 for ₪100, Tel Aviv". You get back a
 finished ad draft:
 - **one timely angle**, found by a research agent on the web;
@@ -311,8 +315,12 @@ Platform) or `deploy:droplet`.
 - **Keys and the password live only in `.env` and in the cloud's variables.** Git ignores `.env`, and
   `.dockerignore` keeps it out of images. Never paste keys into a chat, an issue or a screenshot.
 - **The password guards your money.** Anyone who has the URL and the password can make ads on your account. Use a
-  long random password (the server refuses to start without one) and share it only with whoever needs it. The page
-  keeps it only for the open browser tab. Scripts can call the API with `curl -u any:$APP_PASSWORD`.
+  long random password (`openssl rand -base64 24`) and share it only with whoever needs it. The server refuses to start
+  without one, and in the cloud (`NODE_ENV=production`) it refuses one under 12 characters. After 8 wrong passwords
+  a client is locked out for 15 minutes. The page keeps the password only for the open browser tab. Scripts can call
+  the API with `curl -u any:$APP_PASSWORD`.
+- **https only.** Behind a proxy (Railway, App Platform, Caddy) the service refuses a request the proxy reports as plain
+  http and sends `Strict-Transport-Security` on https ones. `AD_TRUST_PROXY` is on by default in production.
 - **A leaked key gets rotated.** Create a new key in the Anthropic or OpenAI console, update the variables, then
   delete the old key.
 - **Spending is capped in four places:**
@@ -323,11 +331,15 @@ Platform) or `deploy:droplet`.
 - **The agent only reads.** It has web search and web fetch, nothing else: no code, no files, no posting. It never sees
   a key. Web pages are treated as information, not instructions. The brief's prices and facts are checked by code
   against `prompts/facts.md` before anything is drawn.
+- **Secrets are removed from logs and from error messages** shown on the page and in Telegram.
+- **The full security review** against the OWASP Top 10:2025, with every finding and fix, is in
+  [SECURITY-ASSESSMENT.md](SECURITY-ASSESSMENT.md). `npm run audit` checks the dependencies, and Dependabot proposes updates.
 
 ## Tests
 
 ```bash
-npm test               # the brief checks + the whole web service with a fake agent and a mock image model (free)
+npm test               # everything offline and free: brief checks, fonts, reviewer, security, web service, Telegram, overlay
+npm run test:security  # only the security tests (OWASP Top 10:2025)
 npm run test:ad-live   # one real ad: an agent session with web research, plus a real picture (about $0.30)
 ```
 

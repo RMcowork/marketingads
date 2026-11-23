@@ -13,7 +13,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { config } from './env.mjs';
-import { info, warn } from './log.mjs';
+import { info, warn, redact } from './log.mjs';
 import { createJob, replyToJob, approveJob, loadJob, imagePath, UserError } from './ads.mjs';
 import { composeCaption } from './brief.mjs';
 
@@ -101,7 +101,7 @@ async function deliver(chatId, job, imagesBefore) {
     sent = file ? await sendPhoto(chatId, file, caption) : await tg('sendMessage', { chat_id: chatId, text: caption });
   } catch (e) {
     warn(`telegram: could not send the draft of ${job.id}: ${e.message}`);
-    return void (await sendText(chatId, `${say(lang, 'failed')}${e.message}`));
+    return void (await sendText(chatId, `${say(lang, 'failed')}${redact(e.message)}`));
   }
   remember(chatId, sent?.message_id, job.id);
   const notes = String(job.brief.notes_for_owner ?? '').trim();
@@ -176,7 +176,7 @@ async function handle(msg) {
   } catch (e) {
     if (e instanceof UserError) return void (await sendText(chatId, e.message));
     warn(`telegram: ${e?.message ?? e}`);
-    await sendText(chatId, `${say(lang, 'failed')}${String(e?.message ?? e).slice(0, 200)}`);
+    await sendText(chatId, `${say(lang, 'failed')}${redact(String(e?.message ?? e)).slice(0, 200)}`);
   }
 }
 

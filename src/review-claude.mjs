@@ -23,8 +23,11 @@ function reviewerModel() {
 }
 
 /** The message the reviewer receives: the same three blocks the writer got, plus the brief to review. */
+// The brief came from a model that read the open web, so it is untrusted text. It is embedded as JSON with every "<"
+// written as \u003c: a caption that contains "</brief>" or a fake <instructions> block cannot close the tag and talk
+// to the reviewer as if it were the service. (Still valid JSON; the reviewer reads it the same.)
 export const reviewRequest = (brief, ctx) =>
-  `<brand_sheet>\n${ctx.brandSheet}\n</brand_sheet>\n\n<facts>\n${ctx.facts}\n</facts>\n\n<request>\n${ctx.request}\n</request>\n\n<brief>\n${JSON.stringify(brief, null, 2)}\n</brief>`;
+  `<brand_sheet>\n${ctx.brandSheet}\n</brand_sheet>\n\n<facts>\n${ctx.facts}\n</facts>\n\n<request>\n${ctx.request}\n</request>\n\n<brief>\n${JSON.stringify(brief, null, 2).replace(/</g, '\\u003c')}\n</brief>`;
 
 export async function review({ brief, ctx, jobId, round }) {
   const session = await client.beta.sessions.create({

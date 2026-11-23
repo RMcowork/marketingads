@@ -10,4 +10,4 @@ cd "$(dirname "$0")/.."
 rsync -az --delete \
   --exclude node_modules --exclude test-output --exclude data --exclude logs --exclude .git --exclude '.env.*' \
   ./ "root@${IP}:/opt/ad-agents/"
-ssh "root@${IP}" 'cd /opt/ad-agents && npm ci --omit=dev --silent && chown -R adagents:adagents /opt/ad-agents && chmod 600 .env && systemctl restart ad-agents && sleep 2 && systemctl is-active ad-agents && tail -3 logs/server.log'
+ssh "root@${IP}" 'cd /opt/ad-agents && npm ci --omit=dev --ignore-scripts --silent && chown -R adagents:adagents /opt/ad-agents && chmod 600 .env && systemctl restart ad-agents && sleep 2 && systemctl is-active ad-agents && tail -3 logs/server.log'

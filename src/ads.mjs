@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { config, ROOT } from './env.mjs';
-import { info, warn } from './log.mjs';
+import { info, warn, redact } from './log.mjs';
 import { composeCaption } from './brief.mjs';
 import { composePrompt, draw } from './image.mjs';
 import { brandImage } from './overlay.mjs';
@@ -119,6 +119,7 @@ function admit(jobId) {
 export const usageToday = () => ({ runs: runTimes.filter((t) => Date.now() - t < 86_400_000).length, limit: config.maxRunsPerDay, running: running.size });
 
 function cleanText(text, what) {
+  if (text !== undefined && text !== null && typeof text !== 'string') throw new UserError(400, `Write ${what} as text.`);
   const t = String(text ?? '').trim();
   if (!t) throw new UserError(400, `Write ${what}.`);
   if (t.length > 2000) throw new UserError(400, 'That is too long: 2,000 characters at most.');
@@ -176,7 +177,8 @@ function run(job, fn) {
     .catch((e) => {
       warn(`${job.id}: failed: ${e?.message ?? e}`);
       job.status = 'failed';
-      job.error = String(e?.message ?? e).slice(0, 300);
+      // This text is shown to the owner (the page, Telegram): any key a provider echoed back is removed first.
+      job.error = redact(String(e?.message ?? e)).slice(0, 300);
       saveJob(job);
     })
     .finally(() => running.delete(job.id));
@@ -242,6 +244,16 @@ async function agentTurn(job, message, ctx, first, forceRedraw = false) {
 
   job.brief = turn.brief;
   job.caption = composeCaption(turn.brief, CAPTION_LIMIT);
+
+  // Failing closed: when the service is set to AD_REVIEW_FAIL=closed, a draft the reviewer could not look at is
+  // held back too (the owner switching the review off on purpose, AD_REVIEW=off, is not a failure).
+  if (reviewed.review.verdict === 'skipped' && config.reviewFailClosed && reviewed.review.reason !== 'AD_REVIEW=off') {
+    job.status = 'needs_input';
+    job.agentText = 'The independent reviewer is not available right now, and this service holds drafts back without it (AD_REVIEW_FAIL=closed). No picture was drawn. Send your message again in a moment.';
+    saveJob(job);
+    warn(`${job.id}: held back, the reviewer was unavailable (${reviewed.review.reason})`);
+    return;
+  }
 
   if (reviewed.review.verdict === 'fix') {
     // Still failing after the allowed fixes: show why, draw nothing, and wait for the owner.

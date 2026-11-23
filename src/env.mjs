@@ -16,6 +16,11 @@ const num = (name, fallback) => {
   return Number.isFinite(v) ? v : fallback;
 };
 
+const flag = (name, fallback) => {
+  const v = String(process.env[name] ?? '').trim().toLowerCase();
+  return v ? ['1', 'true', 'on', 'yes'].includes(v) : fallback;
+};
+
 export const config = {
   port: num('PORT', 3000),
   // Everything except /health needs this password (HTTP Basic auth, any user name).
@@ -55,6 +60,17 @@ export const config = {
   telegramApiBase: (process.env.TELEGRAM_API_BASE || 'https://api.telegram.org').replace(/\/+$/, ''),
   telegramLongPollSeconds: num('TELEGRAM_LONG_POLL_SECONDS', 25),
   telegramWaitPollMs: num('TELEGRAM_WAIT_POLL_MS', 3000),
+  // ---- Security (SECURITY-ASSESSMENT.md) ----
+  production: process.env.NODE_ENV === 'production',
+  // True when the service sits behind a proxy that sets X-Forwarded-For and X-Forwarded-Proto (Railway, App Platform, Caddy).
+  // Then the client address is the last X-Forwarded-For entry, and a plain-http request is refused. Default: on in production.
+  trustProxy: flag('AD_TRUST_PROXY', process.env.NODE_ENV === 'production'),
+  // Wrong passwords allowed per client within the window, then that client is locked out for the lockout time.
+  authMaxFailures: num('AUTH_MAX_FAILURES', 8),
+  authWindowMs: num('AUTH_WINDOW_MINUTES', 15) * 60_000,
+  authLockoutMs: num('AUTH_LOCKOUT_MINUTES', 15) * 60_000,
+  // What a reviewer that is down does: "open" lets the ad through (marked not reviewed), "closed" holds the draft back.
+  reviewFailClosed: String(process.env.AD_REVIEW_FAIL || 'open').toLowerCase() === 'closed',
 };
 
 /** Problems that stop the server from starting, and ones that only stop ads from working. */
@@ -62,7 +78,14 @@ export function checkConfig() {
   const fatal = [];
   const warnings = [];
   if (!config.appPassword) fatal.push('APP_PASSWORD is not set. Choose a long password: anyone with the URL could otherwise spend your API credit.');
-  else if (config.appPassword.length < 12) warnings.push('APP_PASSWORD is shorter than 12 characters. Use a longer one.');
+  else if (config.appPassword.length < 12) {
+    // A short password is the weakest link: in production (the cloud) the server refuses to start with one.
+    const msg = `APP_PASSWORD is only ${config.appPassword.length} characters. Use 12 or more: a long random one (openssl rand -base64 24).`;
+    (config.production ? fatal : warnings).push(msg);
+  }
+  if (config.telegramToken && !/^https:\/\//.test(config.telegramApiBase) && !/^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(config.telegramApiBase)) {
+    fatal.push('TELEGRAM_API_BASE must be https (the bot token is sent in every request).');
+  }
   if (config.adAgentDriver === 'managed' && !process.env.ANTHROPIC_API_KEY) warnings.push('ANTHROPIC_API_KEY is not set: the research agent cannot run.');
   if (config.imageProvider === 'openai' && !process.env.OPENAI_API_KEY) warnings.push('OPENAI_API_KEY is not set: pictures cannot be drawn.');
   if (config.imageProvider === 'gemini' && !process.env.GEMINI_API_KEY) warnings.push('GEMINI_API_KEY is not set: pictures cannot be drawn.');

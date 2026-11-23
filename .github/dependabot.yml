@@ -1,0 +1,13 @@
+# Keeps the supply chain current (OWASP A03): Dependabot opens a pull request when a dependency, the Docker base
+# image (pinned by digest in the Dockerfile) or a GitHub Action has a new version or a security fix.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly

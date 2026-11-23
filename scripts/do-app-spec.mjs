@@ -17,11 +17,16 @@ if (!repo) {
 }
 const name = (opt('name') || repo.split('/')[1]).toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^[^a-z]+/, '').slice(0, 32).replace(/-+$/, '') || 'ad-agents';
 
-const SECRET = new Set(['APP_PASSWORD', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY']);
+// Anything that is a credential is stored encrypted (SECRET). The bot token and the chat allowlist were missing here:
+// without them a Telegram bot deployed from this spec could not start.
+const SECRET = new Set(['APP_PASSWORD', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'TELEGRAM_BOT_TOKEN']);
 const KEYS = [
-  'APP_PASSWORD', 'ANTHROPIC_API_KEY', 'AD_AGENT_ID', 'AD_ENVIRONMENT_ID', 'AD_SESSION_BUDGET_CENTS', 'AD_TURN_TIMEOUT_SECONDS',
+  'APP_PASSWORD', 'ANTHROPIC_API_KEY', 'AD_AGENT_ID', 'AD_ENVIRONMENT_ID', 'AD_REVIEWER_AGENT_ID', 'AD_SESSION_BUDGET_CENTS', 'AD_TURN_TIMEOUT_SECONDS',
   'MAX_REJECTIONS', 'MAX_RUNS_PER_DAY', 'MAX_PARALLEL_RUNS', 'TIMEZONE',
   'IMAGE_PROVIDER', 'IMAGE_MODEL', 'IMAGE_QUALITY', 'OPENAI_API_KEY', 'GEMINI_API_KEY',
+  'TELEGRAM_BOT_TOKEN', 'TELEGRAM_ALLOWED_CHAT_IDS',
+  'AD_REVIEW', 'AD_REVIEW_FAIL', 'AD_REVIEW_MAX_FIXES', 'AD_OVERLAY', 'AD_FONT',
+  'AUTH_MAX_FAILURES', 'AUTH_WINDOW_MINUTES', 'AUTH_LOCKOUT_MINUTES',
 ];
 const envs = KEYS.filter((k) => process.env[k]).map((key) => ({ key, value: process.env[key], scope: 'RUN_TIME', type: SECRET.has(key) ? 'SECRET' : 'GENERAL' }));
 for (const k of ['APP_PASSWORD', 'ANTHROPIC_API_KEY']) {

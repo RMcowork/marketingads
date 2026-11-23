@@ -1,7 +1,7 @@
 // Tests of the headline fonts: at least three modern fonts per language, picked per ad, drawn as vector
 // shapes (src/fonts.mjs and src/headline.mjs). Free and offline. Run: npm run test:fonts
 import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import sharp from 'sharp';
 import { FONTS, FALLBACK, detectLang, pickFont } from '../src/fonts.mjs';
@@ -22,6 +22,14 @@ for (const lang of ['he', 'en', 'ar']) {
 const files = [...new Set([...Object.values(FONTS).flat(), FALLBACK].map((f) => f.file))];
 check('every font file is in assets/fonts', files.every((f) => existsSync(join(ROOT, 'assets/fonts', f))), `${files.length} files`);
 check('every font has a licence file next to it', ['Heebo', 'Rubik', 'SecularOne', 'Anton', 'Poppins', 'Tajawal', 'Almarai'].every((n) => existsSync(join(ROOT, `assets/fonts/${n}-LICENSE.txt`))));
+
+// Integrity (OWASP A08): the fonts were downloaded from the internet, so each file's SHA-256 was recorded. A file that
+// changes (a bad download, a swapped file) fails here.
+const manifest = JSON.parse(readFileSync(join(ROOT, 'assets/fonts/manifest.json'), 'utf8'));
+const sha256 = (f) => createHash('sha256').update(readFileSync(join(ROOT, 'assets/fonts', f))).digest('hex');
+const changed = Object.entries(manifest.files).filter(([f, m]) => !existsSync(join(ROOT, 'assets/fonts', f)) || sha256(f) !== m.sha256).map(([f]) => f);
+check('every font and licence file matches its recorded SHA-256', changed.length === 0, changed.length ? `changed: ${changed.join(', ')}` : `${Object.keys(manifest.files).length} files`);
+check('every font the app uses is in the manifest', files.every((f) => manifest.files[f]));
 
 // ---------- language and choice ----------
 check('Hebrew is detected', detectLang(TEXT.he) === 'he');
