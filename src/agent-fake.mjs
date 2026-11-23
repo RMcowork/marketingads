@@ -12,12 +12,12 @@ const log = (entry) => { if (process.env.FAKE_AGENT_LOG) appendFileSync(process.
 
 const SCENE = 'A double cheeseburger on a glossy amber brioche bun, two seared patties with melted yellow cheese running down the sides, pickles and caramelised onions peeking out. It sits centred on a pale warm-grey stone counter in front of a softly mottled grey marble wall. Soft diffused light from the front-left, shot straight-on at eye level, so the burger fills most of the frame. Clean, simple and hungry-making.';
 
-function makeBrief({ redraw, bad, short, newHead }) {
+function makeBrief({ redraw, bad, short, newHead, reviewed }) {
   return {
     language: 'he',
     angle: 'Friday lunch is burger time in Tel Aviv.',
     copy: {
-      headline: newHead ? 'כותרת חדשה' : short ? 'דאבל צ׳יזבורגר ליום שישי' : 'דאבל צ׳יזבורגר ליום שישי',
+      headline: reviewed ? 'כותרת מתוקנת' : newHead ? 'כותרת חדשה' : short ? 'דאבל צ׳יזבורגר ליום שישי' : 'דאבל צ׳יזבורגר ליום שישי',
       caption: bad ? 'שני דאבל צ׳יזבורגר ב-₪95 במבשרת ציון, רק השבוע' : short ? 'שני פטיס צרובים וגבינה נמסה. 2 ב-100. בואו.' : 'שני פטיס צרובים, גבינה נמסה, בצל מקורמל ומלפפון חמוץ. 2 ב-100 במבשרת ציון. בואו רעבים ביום שישי.',
       cta: 'יום שישי, מבשרת ציון, מ-12:00',
       hashtags: ['#MeatLocker', '#המבורגר', '#תלאביב'],
@@ -46,14 +46,17 @@ export async function runTurn({ sessionId, text, ctx }) {
   const s = sessions.get(sessionId) ?? { briefs: 0 };
   log({ op: 'turn', sessionId, text, factsHead: ctx.facts.slice(0, 60) });
   if (/\[NOBRIEF\]/.test(text)) return { brief: null, text: 'על איזה בורגר המודעה?', stop: 'end_turn', rejections: 0, problems: [], error: null };
-  const isReply = text.startsWith('<reply>');
+  // A <review> block is the independent reviewer's list of problems (src/review.mjs): the writer fixes them, and
+  // here that means a corrected headline and no new picture.
+  const reviewed = text.startsWith('<review>');
+  const isReply = text.startsWith('<reply>') || reviewed;
   const redraw = !isReply || /\[REDRAW\]|תמונה אחרת|new picture/i.test(text);
   const short = isReply && /קצר/.test(text);
   let rejections = 0;
   const newHead = /\[NEWHEAD\]/.test(text);
-  let brief = makeBrief({ redraw, bad: /\[BADPRICE\]/.test(text) && s.briefs === 0, short, newHead });
+  let brief = makeBrief({ redraw, bad: /\[BADPRICE\]/.test(text) && s.briefs === 0, short, newHead, reviewed });
   let v = validateBrief(brief, ctx);
-  if (!v.ok) { rejections = 1; log({ op: 'rejected', sessionId, problems: v.problems }); brief = makeBrief({ redraw, bad: false, short, newHead }); v = validateBrief(brief, ctx); }
+  if (!v.ok) { rejections = 1; log({ op: 'rejected', sessionId, problems: v.problems }); brief = makeBrief({ redraw, bad: false, short, newHead, reviewed }); v = validateBrief(brief, ctx); }
   s.briefs += 1;
   return { brief: v.ok ? brief : null, text: v.ok ? 'המודעה על דאבל צ׳יזבורגר ליום שישי במבשרת ציון.' : v.result, stop: 'end_turn', rejections, problems: v.problems, error: null };
 }

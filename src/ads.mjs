@@ -10,6 +10,7 @@ import { info, warn } from './log.mjs';
 import { composeCaption } from './brief.mjs';
 import { composePrompt, draw } from './image.mjs';
 import { brandImage } from './overlay.mjs';
+import { reviewEnabled, reviewOffReason, reviewBrief, reviewMessage, formatProblems } from './review.mjs';
 
 const driver = config.adAgentDriver === 'fake' ? await import('./agent-fake.mjs') : await import('./agent.mjs');
 
@@ -82,6 +83,8 @@ export function publicJob(job) {
     image: img ? { url: `/api/ads/${job.id}/image?n=${job.images.length}`, count: job.images.length, aspect: img.aspect } : null,
     rejections: (job.turns ?? []).reduce((n, t) => n + (t.rejections ?? 0), 0),
     usage: job.usage ?? null,
+    // The independent reviewer's verdict (src/review.mjs): pass | fix (held back) | skipped (not reviewed).
+    review: job.review ? { verdict: job.review.verdict, model: job.review.model ?? null, fixes: job.review.fixes ?? 0, reason: job.review.reason ?? null, problems: job.review.problems ?? [], rounds: (job.review.rounds ?? []).map((r) => ({ round: r.round, verdict: r.verdict, problems: r.problems ?? [] })) } : null,
   };
 }
 
@@ -179,6 +182,40 @@ function run(job, fn) {
     .finally(() => running.delete(job.id));
 }
 
+/**
+ * The second opinion (src/review.mjs). An independent reviewer model checks the accepted brief for language
+ * and brand. If it finds problems, the writer is sent back to fix them (a <review> message, up to
+ * AD_REVIEW_MAX_FIXES times) and the new brief is reviewed again. Nothing is drawn until it passes.
+ * A reviewer that fails or is not set up never stops an ad: the ad goes through, marked "skipped".
+ * @returns {{ brief: object, review: object }}  review.verdict is pass | fix (still failing) | skipped
+ */
+async function reviewLoop(job, ctx, brief) {
+  const rounds = [];
+  if (!reviewEnabled()) return { brief, review: { verdict: 'skipped', reason: reviewOffReason(), fixes: 0, rounds } };
+  let fixes = 0;
+  for (let round = 1; ; round++) {
+    let r;
+    try {
+      r = await reviewBrief({ brief, ctx, jobId: job.id, round });
+    } catch (e) {
+      warn(`${job.id}: review ${round} failed, going on without it: ${e?.message ?? e}`);
+      rounds.push({ round, verdict: 'skipped', error: String(e?.message ?? e).slice(0, 200) });
+      return { brief, review: { verdict: 'skipped', reason: 'the reviewer failed', fixes, rounds } };
+    }
+    rounds.push({ round, verdict: r.verdict, problems: r.problems, model: r.model, costCents: r.costCents });
+    info(`${job.id}: review ${round} by ${r.model || 'the reviewer'}: ${r.verdict}${r.problems.length ? ` (${r.problems.length} problems)` : ''}`);
+    if (r.verdict === 'pass') return { brief, review: { verdict: 'pass', model: r.model, fixes, rounds } };
+    if (fixes >= config.reviewMaxFixes) return { brief, review: { verdict: 'fix', model: r.model, fixes, problems: r.problems, rounds } };
+
+    fixes += 1;
+    const t0 = Date.now();
+    const fix = await driver.runTurn({ sessionId: job.sessionId, text: reviewMessage(r.problems), ctx });
+    job.turns.push({ at: new Date().toISOString(), first: false, review: round, ms: Date.now() - t0, rejections: fix.rejections, problems: fix.problems, agentText: fix.text, accepted: Boolean(fix.brief) });
+    if (!fix.brief) return { brief, review: { verdict: 'fix', model: r.model, fixes, problems: r.problems, rounds, writerSaid: fix.text } };
+    brief = fix.brief;
+  }
+}
+
 async function agentTurn(job, message, ctx, first, forceRedraw = false) {
   const t0 = Date.now();
   const turn = await driver.runTurn({ sessionId: job.sessionId, text: message, ctx });
@@ -195,8 +232,26 @@ async function agentTurn(job, message, ctx, first, forceRedraw = false) {
     return;
   }
 
+  // The second opinion, before any picture is drawn (and paid for).
+  const reviewed = await reviewLoop(job, ctx, turn.brief);
+  turn.brief = reviewed.brief;
+  job.review = reviewed.review;
+  if (reviewed.review.fixes) { const u = await driver.getUsage(job.sessionId); if (u) job.usage = u; }
+  const reviewCents = reviewed.review.rounds.reduce((n, r) => n + (Number(r.costCents) || 0), 0);
+  if (reviewCents) job.usage = { ...(job.usage ?? {}), reviewCents };
+
   job.brief = turn.brief;
   job.caption = composeCaption(turn.brief, CAPTION_LIMIT);
+
+  if (reviewed.review.verdict === 'fix') {
+    // Still failing after the allowed fixes: show why, draw nothing, and wait for the owner.
+    job.status = 'needs_input';
+    job.agentText = `The independent reviewer would not pass this draft yet, so no picture was drawn:\n${formatProblems(reviewed.review.problems)}\n\nTell me what to change, or ask for another angle.`;
+    saveJob(job);
+    info(`${job.id}: held back by the reviewer after ${reviewed.review.fixes} fix round(s)`);
+    return;
+  }
+
   if (first || forceRedraw || turn.brief.redraw_image === true || !job.images.length) {
     const prompt = composePrompt(turn.brief.image);
     const t1 = Date.now();

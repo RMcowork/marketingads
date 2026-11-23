@@ -21,6 +21,7 @@ import { realpathSync } from 'node:fs';
 import { config, checkConfig, ROOT } from './env.mjs';
 import { info, warn } from './log.mjs';
 import { createJob, replyToJob, loadJob, listJobs, publicJob, imagePath, validId, usageToday, brandName, UserError } from './ads.mjs';
+import { reviewEnabled, reviewOffReason } from './review.mjs';
 
 const STATIC = {
   '/': ['index.html', 'text/html; charset=utf-8'],
@@ -123,6 +124,7 @@ const isMain = (() => { try { return pathToFileURL(realpathSync(process.argv[1])
 if (isMain) {
   const { fatal, warnings } = checkConfig();
   for (const w of warnings) warn(`[config] ${w}`);
+  if (!reviewEnabled()) warn(`[config] ads are NOT being reviewed by a second model (${reviewOffReason()}).`);
   if (fatal.length) { for (const f of fatal) console.error(`[config] ${f}`); process.exit(1); }
   for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => process.exit(0));
   createApp().listen(config.port, () => {

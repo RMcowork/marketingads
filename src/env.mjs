@@ -34,6 +34,15 @@ export const config = {
   // Agent runs (new ads + revisions) allowed per rolling 24 hours, and at the same time. Cost control.
   maxRunsPerDay: num('MAX_RUNS_PER_DAY', 30),
   maxParallelRuns: num('MAX_PARALLEL_RUNS', 2),
+  // The second opinion (src/review.mjs): a different model reviews every accepted brief, for language and
+  // brand, before a picture is drawn. AD_REVIEW=off skips it. The reviewer is its own agent (agents/ad-reviewer.md).
+  reviewEnabled: String(process.env.AD_REVIEW || 'on').toLowerCase() !== 'off',
+  reviewProvider: (process.env.AD_AGENT_DRIVER || 'managed') === 'fake' ? 'fake' : 'claude', // claude | fake (tests)
+  reviewerAgentId: process.env.AD_REVIEWER_AGENT_ID || '',
+  reviewBudgetCents: String(num('AD_REVIEW_BUDGET_CENTS', 50)),
+  reviewTimeoutMs: num('AD_REVIEW_TIMEOUT_SECONDS', 120) * 1000,
+  // How many times the writer may be sent back to fix what the reviewer found, before the draft is held back.
+  reviewMaxFixes: num('AD_REVIEW_MAX_FIXES', 2),
   imageProvider: process.env.IMAGE_PROVIDER || 'openai', // openai | gemini | mock (tests)
   imageModel: process.env.IMAGE_MODEL || (process.env.IMAGE_PROVIDER === 'gemini' ? 'gemini-nano-banana-2.1' : 'gpt-image-2.6-sunburst'),
   imageQuality: process.env.IMAGE_QUALITY || 'medium',

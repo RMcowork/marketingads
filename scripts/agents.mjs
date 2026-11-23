@@ -1,12 +1,13 @@
-// Creates or updates the ad agent and its environment on the Claude Developer Platform with the
-// `ant` CLI, using ANTHROPIC_API_KEY from .env, and prints the two IDs a cloud deploy needs.
+// Creates or updates the ad agents (the researcher and the independent reviewer) and their environment on the
+// Claude Developer Platform with the `ant` CLI, using ANTHROPIC_API_KEY from .env, and prints the IDs a cloud
+// deploy needs.
 //   npm run agents:plan    show what would change, change nothing
 //   npm run agents:apply   create or update (ant shows the plan and asks before changing anything)
-//   npm run agents:ids     print AD_AGENT_ID and AD_ENVIRONMENT_ID from claude-lock.json
+//   npm run agents:ids     print AD_AGENT_ID, AD_REVIEWER_AGENT_ID and AD_ENVIRONMENT_ID from claude-lock.json
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
-const FILES = ['agents/ad-researcher.md', 'environments/ad-research.yaml'];
+const FILES = ['agents/ad-researcher.md', 'agents/ad-reviewer.md', 'environments/ad-research.yaml'];
 const LOCK = 'claude-lock.json';
 const cmd = process.argv[2];
 if (existsSync('.env')) process.loadEnvFile('.env');
@@ -15,9 +16,12 @@ function printIds() {
   if (!existsSync(LOCK)) { console.error(`No ${LOCK} yet. Run "npm run agents:apply" first.`); process.exit(1); }
   const lock = JSON.parse(readFileSync(LOCK, 'utf8'));
   const agent = lock.resources?.['./agents/ad-researcher.md']?.id;
+  const reviewer = lock.resources?.['./agents/ad-reviewer.md']?.id;
   const env = lock.resources?.['./environments/ad-research.yaml']?.id;
-  if (!agent || !env) { console.error(`${LOCK} does not list both resources. Run "npm run agents:apply".`); process.exit(1); }
+  if (!agent || !env) { console.error(`${LOCK} does not list the researcher and the environment. Run "npm run agents:apply".`); process.exit(1); }
   console.log(`AD_AGENT_ID=${agent}\nAD_ENVIRONMENT_ID=${env}`);
+  if (reviewer) console.log(`AD_REVIEWER_AGENT_ID=${reviewer}`);
+  else console.error('The reviewer is not created yet: run "npm run agents:apply". Until then ads are not reviewed.');
 }
 
 if (cmd === 'ids') {

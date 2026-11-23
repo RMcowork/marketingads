@@ -29,7 +29,7 @@ the drafts. The business is **MeatLocker**, a burger restaurant (logo and photos
 | Folder | What it is |
 |---|---|
 | `agents/ad-researcher.md` | The research agent: its configuration (frontmatter) and its instructions (body) |
-| `agents/ad-reviewer.md` | An optional second agent that reviews a brief. Not wired in; an exercise. |
+| `agents/ad-reviewer.md` | The independent reviewer: a different model that checks every brief for language and brand before a picture is drawn (see "4c. A second model reviews every ad") |
 | `environments/ad-research.yaml` | The environment the agent runs in, on Anthropic's side |
 | `prompts/` | The brand sheet, the facts, the picture style, and how the prompts are put together |
 | `src/` | The web service: API, the agent driver, the brief checks, the image providers, the logo and headline overlay, the Telegram bot |
@@ -112,11 +112,11 @@ git clone <your copy of this repo> ad-agents && cd ad-agents
 npm install
 npm test                  # offline tests: no keys, no cost, a few seconds
 cp .env.example .env      # then fill in APP_PASSWORD and your keys (see "Get your API keys")
-npm run agents:plan       # shows what would be created: one agent, one environment. Changes nothing.
+npm run agents:plan       # shows what would be created: two agents (writer and reviewer), one environment. Changes nothing.
 npm run agents:apply      # creates them (ant shows the plan again and asks first)
 ```
 
-`agents:apply` writes `claude-lock.json` with the IDs of your agent and environment. **Commit that file.** The IDs
+`agents:apply` writes `claude-lock.json` with the IDs of your agents and environment. **Commit that file.** The IDs
 are not secrets, and the server reads them from it, locally and in the cloud.
 
 No `ant` CLI? Create the agent in the Claude Console instead: Managed Agents → new agent. Paste the body of
@@ -233,6 +233,37 @@ differently every time. The image prompt asks the model to leave the top and bot
 The brand sheet also has a **shot list** (hero, cheese pull, cross-section, two burgers, in hand, overhead). The agent
 picks one per ad to fit the angle, so a feed of ads does not look like one repeated photo.
 
+## 4c. A second model reviews every ad
+
+One model should not be the only judge of its own work. So after the code checks (lengths, prices, facts, bacon,
+kosher wording) accept a brief, **a second, different model** reads it before anything is drawn. The writer is
+Claude Opus; the reviewer is Claude Sonnet (the `model:` line in `agents/ad-reviewer.md`). It has no web access, no
+memory of the writer's reasoning, and one tool, `submit_review`. Each review is a new session, so it judges fresh.
+
+It checks two things only:
+
+| | What it looks at |
+|---|---|
+| **Language** | Is every text in the language of the request (Hebrew, English or Arabic) and the `language` field? Correct spelling and grammar, natural voice rather than a translation, plural address in Hebrew, real Arabic words, ₪ and hashtags in order, one meaning across headline, caption and call to action, the picture scene in English |
+| **Brand** | The brand sheet line by line: young street-style voice, one emoji and one exclamation mark at most, names the burger, the day and the branch, the whole "Never" list in any wording, facts only, a scene with only the listed ingredients and no faces, text or logos |
+
+What happens next:
+
+```
+brief accepted by the code checks
+  └─ reviewer says pass ───────────────▶ picture is drawn
+  └─ reviewer lists problems ──▶ the writer gets a <review> message (not the owner's voice, adds no facts)
+        └─ fixes, up to AD_REVIEW_MAX_FIXES times (2) ──▶ reviewed again
+              └─ still failing ──▶ held back: status needs_input, the owner is told why, NO picture is drawn
+```
+
+- A reviewer that fails, times out or is not set up **never stops an ad**: it goes through, marked
+  `review.verdict: "skipped"` in the job and the log, and the server prints a warning at start-up.
+- The verdict is in the API (`review` on every ad: verdict, model, fixes, problems) and in `data/ads/<id>.json`.
+- `AD_REVIEW=off` turns it off. Cost is about a cent or two per review (`AD_REVIEW_BUDGET_CENTS` caps a session at 50).
+- To use another model, change the `model:` line and run `npm run agents:apply`. The reviewer sits behind
+  `src/review.mjs`, so a different provider (an OpenAI or Gemini model) can be added as another `review-<name>.mjs`.
+
 ## 4b. Make ads from Telegram (optional)
 
 The owner can chat with a bot instead of opening the web page: send the request, get the picture and the copy back
@@ -305,6 +336,7 @@ npm run test:ad-live   # one real ad: an agent session with web research, plus a
 | Item | Cost |
 |---|---|
 | One new ad: an agent session (Opus, a few web searches) plus one picture | about $0.30 |
+| The second-model review of an ad (a fix round adds a few cents more) | about 1 to 2 cents |
 | A text-only change | a few cents |
 | A new picture | about $0.10 with OpenAI at medium quality |
 | Railway or App Platform | about $5 a month for a small service (see their pricing pages) |

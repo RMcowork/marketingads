@@ -9,10 +9,18 @@
     "./agents/ad-researcher.md": {
       "kind": "agent",
       "id": "agent_01LmfYz3HgDmxgECx7A2MAsg",
-      "version": "2",
-      "hash": "c73c14d2073b0f52ad5b12ab083e0fce",
-      "remote_hash": "1a8c1a666a242ce6d56d9f149a38da5c",
-      "stamp": "2"
+      "version": "3",
+      "hash": "572b5d2f67b228f7a54938a26e0dbd9a",
+      "remote_hash": "1a8af97f4cb2a6c22e572a6a973fad26",
+      "stamp": "3"
+    },
+    "./agents/ad-reviewer.md": {
+      "kind": "agent",
+      "id": "agent_0111jPyGWPy4hAtXdTPgZteN",
+      "version": "1",
+      "hash": "f5d67f5233330ea80b9ab7ce52368690",
+      "remote_hash": "50dc8eb094cc6cf68127770d08c06543",
+      "stamp": "1"
     },
     "./environments/ad-research.yaml": {
       "kind": "environment",

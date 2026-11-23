@@ -13,7 +13,7 @@ import { validateBrief } from './brief.mjs';
 const client = new Anthropic();
 const LOCK = join(ROOT, 'claude-lock.json');
 
-function lock() {
+export function lock() {
   try { return existsSync(LOCK) ? JSON.parse(readFileSync(LOCK, 'utf8')) : null; } catch { return null; }
 }
 

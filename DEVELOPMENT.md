@@ -144,8 +144,9 @@ Run `npm test` before every push. Run `test:ad-live` after changing the agent fi
 
 ## 5. Ideas for exercises
 
-- **Wire in the reviewer.** `agents/ad-reviewer.md` exists. Apply it, and before drawing, open a second session that
-  reviews the accepted brief. Send its fixes back to the researcher as a `<reply>`.
+- **A reviewer from another provider.** The independent reviewer (`src/review.mjs`) is a Claude model that differs
+  from the writer. For more independence, add `src/review-openai.mjs` (same two exports as `review-claude.mjs`) and
+  choose it in `src/env.mjs`.
 - **Several brands.** Add a `/brand` choice and one prompt folder per brand.
 - **A real database** (SQLite on a volume, or a managed database) and history per user.
 - **Deliver it somewhere.** Send the finished draft to WhatsApp, Telegram or email instead of only showing it on the
